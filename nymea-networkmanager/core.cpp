@@ -22,9 +22,11 @@
 #include "core.h"
 #include "loggingcategories.h"
 
+
 #include <QTimer>
 
 Core* Core::s_instance = nullptr;
+
 
 Core *Core::instance()
 {
@@ -127,6 +129,7 @@ Core::Core(QObject *parent) :
     connect(m_networkManager, &NetworkManager::stateChanged, this, &Core::onNetworkManagerStateChanged);
 
     m_bluetoothServer = new BluetoothServer(m_networkManager);
+    m_raspberryPi = new RasberryPI();
 
     connect(m_bluetoothServer, &BluetoothServer::runningChanged, this, &Core::onBluetoothServerRunningChanged);
     connect(m_bluetoothServer, &BluetoothServer::connectedChanged, this, &Core::onBluetoothServerConnectedChanged);
@@ -212,10 +215,16 @@ void Core::startService()
     // Disable bluetooth on nymea in order to not crash with client connections
     m_nymeaService->enableBluetooth(false);
 
+    QString serialNumber = m_raspberryPi->getSerialNumber();
+    qCDebug(dcApplication()) << "PI Serial number is = " << serialNumber;
+
     // Start the bluetooth server for this wireless device
     m_bluetoothServer->setAdvertiseName(m_advertiseName);
     m_bluetoothServer->setModelName(m_platformName);
     m_bluetoothServer->setSoftwareVersion(VERSION_STRING);
+    m_bluetoothServer->setSerialNumber(serialNumber);
+    
+    
     m_bluetoothServer->start();
 }
 

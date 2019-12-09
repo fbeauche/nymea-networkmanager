@@ -17,6 +17,7 @@ HEADERS += \
     loggingcategories.h \
     nymeadservice.h \
     pushbuttonagent.h \
+    rasberrypi.h \
 
 
 SOURCES += \
@@ -26,6 +27,7 @@ SOURCES += \
     loggingcategories.cpp \
     nymeadservice.cpp \
     pushbuttonagent.cpp \
+    rasberrypi.cpp \
 
 target.path = /usr/bin
 INSTALLS += target

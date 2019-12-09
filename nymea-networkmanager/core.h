@@ -30,6 +30,8 @@
 #include "nymea-networkmanager/networkmanager.h"
 #include "nymea-networkmanager/bluetooth/bluetoothserver.h"
 
+#include "rasberrypi.h"
+
 class Core : public QObject
 {
     Q_OBJECT
@@ -79,6 +81,7 @@ private:
     NymeadService *m_nymeaService = nullptr;
     WirelessNetworkDevice *m_wirelessDevice = nullptr;
     GpioButton *m_button = nullptr;
+    RasberryPI *m_raspberryPi = nullptr;
 
     QTimer *m_advertisingTimer = nullptr;
 
