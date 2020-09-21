@@ -1,3 +1,28 @@
+nymea-networkmanager (0.5.3) xenial; urgency=medium
+
+  [ Michael Zanetti ]
+  * Fix build with newest libnymea-networkmanager
+
+ -- Jenkins <jenkins@nymea.io>  Thu, 02 Jul 2020 11:10:29 +0200
+
+nymea-networkmanager (0.5.2) xenial; urgency=medium
+
+  [ Michael Zanetti ]
+  * Fix race conditions at startup.
+
+ -- Jenkins <jenkins@nymea.io>  Tue, 24 Mar 2020 13:21:15 +0100
+
+nymea-networkmanager (0.5.1) xenial; urgency=medium
+
+  [ Simon Stürz ]
+  * Update documentation
+
+  [ Michael Zanetti ]
+  * Fix building in sbuild
+  * Update copyright
+
+ -- Jenkins <jenkins@nymea.io>  Thu, 23 Jan 2020 13:40:42 +0100
+
 nymea-networkmanager (0.5.0) xenial; urgency=medium
   [ Simon Stürz ]
   * Update pkg-config include for libnymea-networkmanager

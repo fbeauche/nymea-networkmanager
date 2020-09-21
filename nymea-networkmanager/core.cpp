@@ -1,23 +1,32 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *                                                                               *
- * Copyright (C) 2018 Simon Stürz <simon.stuerz@guh.io>                          *
- *                                                                               *
- * This file is part of nymea-networkmanager.                                    *
- *                                                                               *
- * nymea-networkmanager is free software: you can redistribute it and/or         *
- * modify it under the terms of the GNU General Public License as published by   *
- * the Free Software Foundation, either version 3 of the License,                *
- * or (at your option) any later version.                                        *
- *                                                                               *
- * nymea-networkmanager is distributed in the hope that it will be useful,       *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of                *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the                  *
- * GNU General Public License for more details.                                  *
- *                                                                               *
- * You should have received a copy of the GNU General Public License along       *
- * with nymea-networkmanager. If not, see <http://www.gnu.org/licenses/>.        *
- *                                                                               *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*
+* Copyright 2013 - 2020, nymea GmbH
+* Contact: contact@nymea.io
+*
+* This file is part of nymea.
+* This project including source code and documentation is protected by
+* copyright law, and remains the property of nymea GmbH. All rights, including
+* reproduction, publication, editing and translation, are reserved. The use of
+* this project is subject to the terms of a license agreement to be concluded
+* with nymea GmbH in accordance with the terms of use of nymea GmbH, available
+* under https://nymea.io/license
+*
+* GNU General Public License Usage
+* Alternatively, this project may be redistributed and/or modified under the
+* terms of the GNU General Public License as published by the Free Software
+* Foundation, GNU version 3. This project is distributed in the hope that it
+* will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+* Public License for more details.
+*
+* You should have received a copy of the GNU General Public License along with
+* this project. If not, see <https://www.gnu.org/licenses/>.
+*
+* For any further details and any questions please contact us under
+* contact@nymea.io or see our FAQ/Licensing Information on
+* https://nymea.io/license/faq
+*
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "core.h"
 #include "loggingcategories.h"
@@ -112,13 +121,7 @@ void Core::setButtonGpio(int buttonGpio)
 void Core::run()
 {
     // Start the networkmanager
-    if (!m_networkManager->start()) {
-        qCWarning(dcApplication()) << "Could not start network manager. Please make sure the networkmanager is available.";
-        return;
-    }
-
-    // Note: give network-manager more time to start and get online status
-    QTimer::singleShot(3000, this, &Core::postRun);
+    m_networkManager->start();
 }
 
 Core::Core(QObject *parent) :
@@ -140,6 +143,10 @@ Core::Core(QObject *parent) :
     m_advertisingTimer = new QTimer(this);
     m_advertisingTimer->setSingleShot(true);
     connect(m_advertisingTimer, &QTimer::timeout, this, &Core::onAdvertisingTimeout);
+
+    m_button = new GpioButton(m_buttonGpio, this);
+    m_button->setLongPressedTimeout(2000);
+    connect(m_button, &GpioButton::longPressed, this, &Core::onButtonLongPressed);
 }
 
 Core::~Core()
@@ -163,7 +170,7 @@ void Core::evaluateNetworkManagerState(NetworkManager::NetworkManagerState state
         return;
 
     // Note: if the wireless device is in the access point mode, the bluetooth server should stop
-    if (m_wirelessDevice && m_wirelessDevice->mode() == WirelessNetworkDevice::ModeAccessPoint) {
+    if (m_wirelessDevice && m_wirelessDevice->wirelessMode() == WirelessNetworkDevice::WirelessModeAccessPoint) {
         stopService();
         return;
     }
@@ -200,7 +207,6 @@ void Core::evaluateNetworkManagerState(NetworkManager::NetworkManagerState state
 
 void Core::startService()
 {
-    qCDebug(dcApplication()) << "Start the service...";
     if (!m_networkManager->available()) {
         qCWarning(dcApplication()) << "Could not start services. There is no network manager available.";
         return;
@@ -231,48 +237,8 @@ void Core::startService()
 void Core::stopService()
 {
     if (m_bluetoothServer && m_bluetoothServer->running()) {
-        qCDebug(dcApplication()) << "Stop bluetooth service";
+        qCDebug(dcApplication()) << "Stopping bluetooth service";
         m_bluetoothServer->stop();
-    }
-}
-
-void Core::postRun()
-{
-    qCDebug(dcApplication()) << "Post run service";
-    m_initRunning = false;
-
-    switch (m_mode) {
-    case ModeAlways:
-        qCDebug(dcApplication()) << "Start the bluetooth service because of \"always\" mode.";
-        startService();
-        break;
-    case ModeStart:
-        qCDebug(dcApplication()) << "Start the bluetooth service because of \"start\" mode.";
-        startService();
-        m_advertisingTimer->start(m_advertisingTimeout * 1000);
-        break;
-    case ModeOffline:
-        evaluateNetworkManagerState(m_networkManager->state());
-        break;
-    case ModeOnce:
-        if (m_networkManager->networkSettings()->connections().isEmpty()) {
-            qCDebug(dcApplication()) << "Start the bluetooth service because of \"once\" mode and there is currenlty no network configured yet.";
-            startService();
-        } else {
-            qCDebug(dcApplication()) << "Not starting the bluetooth service because of \"once\" mode. There are" << m_networkManager->networkSettings()->connections().count() << "network configurations.";
-        }
-        break;
-    case ModeButton:
-        // Enable button
-        m_button = new GpioButton(m_buttonGpio, this);
-        m_button->setLongPressedTimeout(2000);
-        connect(m_button, &GpioButton::longPressed, this, &Core::onButtonLongPressed);
-        if (!m_button->enable()) {
-            qCCritical(dcApplication()) << "Could not not enable GPIO button for" << m_buttonGpio;
-            m_button->deleteLater();
-            m_button = nullptr;
-        }
-        break;
     }
 }
 
@@ -342,33 +308,39 @@ void Core::onNetworkManagerAvailableChanged(bool available)
         return;
     }
 
-    if (m_initRunning) {
-        qCDebug(dcApplication()) << "Init is running...";
-        return;
-    }
-
     qCDebug(dcApplication()) << "Networkmanager is now available.";
 
     switch (m_mode) {
     case ModeAlways:
-        qCDebug(dcApplication()) << "Start the bluetooth service because of \"always\" mode.";
-        // Give some grace periode for networkmanager
-        QTimer::singleShot(4000, this, &Core::startService);
+        qCDebug(dcApplication()) << "Starting the Bluetooth service because of \"always\" mode.";
+        startService();
         break;
     case ModeStart:
+        // Only start it once in "start" mode...
+        static bool alreadyRan = false;
+        if (alreadyRan) {
+            return;
+        }
+        qCDebug(dcApplication()) << "Starting the Bluetooth service because of \"start\" mode.";
+        alreadyRan = true;
+        startService();
+        m_advertisingTimer->start(m_advertisingTimeout * 1000);
         break;
     case ModeOffline:
         evaluateNetworkManagerState(m_networkManager->state());
         break;
     case ModeOnce:
         if (m_networkManager->networkSettings()->connections().isEmpty()) {
-            qCDebug(dcApplication()) << "Start the bluetooth service because of \"once\" mode and there is currenlty no network configured yet.";
+            qCDebug(dcApplication()) << "Starting the Bluetooth service because of \"once\" mode and there is currenlty no network configured yet.";
             startService();
         } else {
-            qCDebug(dcApplication()) << "Not starting the bluetooth service because of \"once\" mode. There are" << m_networkManager->networkSettings()->connections().count() << "network configurations.";
+            qCDebug(dcApplication()) << "Not starting the Bluetooth service because of \"once\" mode. There are" << m_networkManager->networkSettings()->connections().count() << "network configurations.";
         }
         break;
     case ModeButton:
+        if (!m_button->enable()) {
+            qCCritical(dcApplication()) << "Failed to enable the GPIO button for" << m_buttonGpio;
+        }
         break;
     }
 }
